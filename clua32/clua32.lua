@@ -174,7 +174,7 @@ function eCompound(source, i)
 	while i <= #source do
 		local statement;
 		i, statement = eStatement(source, i, scope);
-		statement.position = position = {sourceLocation(source, i)};
+		statement.position = {sourceLocation(source, i)};
 		table.insert(statements, statement);
 		i = eWhitespace(source, i);
 		if source:sub(i, i) == "}" then

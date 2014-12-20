@@ -1,6 +1,6 @@
-C:/nasm/nasm.exe main.asm -f bin -o bootloader.bin
-C:/nasm/nasm.exe kernel.c.asm -f bin -o kernel.bin
-C:/nasm/nasm.exe ten.asm -f bin -o ten.bin
-cat bootloader.bin kernel.bin > osimage.bin
-cat osimage.bin ten.bin > osimagepad.bin
-qemu-system-x86_64w osimagepad.bin
+C:/nasm/nasm.exe main.asm -f bin -o bin/bootloader.bin
+C:/nasm/nasm.exe kernel.c.asm -f bin -o bin/kernel.bin
+C:/nasm/nasm.exe ten.asm -f bin -o bin/ten.bin
+cat bin/bootloader.bin bin/kernel.bin > bin/osimage.bin
+cat bin/osimage.bin bin/ten.bin > bin/osimagepad.bin
+qemu-system-x86_64w bin/osimagepad.bin
