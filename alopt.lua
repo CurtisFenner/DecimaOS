@@ -6,6 +6,17 @@ function readFile(fname)
 	return lines;
 end
 
+--------------------------------------------------------------------------------
+
+local iotable = {};
+
+iotable.add = {ins = {"#1", "#2"}, outs = {"#1"}};
+iotable.imul = {ins = {"#1", "#2"}, outs = {"#1"}};
+iotable.push = {ins = {"esp", "#1"}, outs = {"esp", "[mem]"}};
+iotable.pop = {ins = {"esp", "[mem]"}, outs = {"esp", "#1"}};
+
+--------------------------------------------------------------------------------
+
 function stripComment(line)
 	local quoted = false;
 	local escaped = false;
@@ -32,7 +43,12 @@ end
 
 
 function parseInstruction(line)
+	line = trimFront(line);
+	if line == "" then
+		return nil;
+	end
 	local name, line = parseWord(line);
+	name = name:lower();
 	if atEnd(line) then
 		return {name = name, args = {}};
 	end
@@ -135,12 +151,12 @@ end
 
 function dependencies(inst)
 	local name = inst.name .. "_" .. #inst.args;
-	-- data (see after)
+	-- iotable (see after)
 	local ins, outs = {}, {};
-	if not data[name] then
+	if not iotable[name] then
 		return;
 	end
-	local code = data[name];
+	local code = iotable[name];
 	for i = 1, #code.ins do
 		if code.ins[i] == "#1" then
 			addArg(ins, inst.args[1]);
@@ -216,6 +232,9 @@ end
 function conflicts(a, b)
 	local ain, aout = dependencies(a);
 	local bin, bout = dependencies(b);
+	if not ain or not bin then
+		return true;
+	end
 	if contains(ain, INV) or contains(aout, INV)
 		or contains(bin, INV) or contains(bout, INV) then
 		return true;
