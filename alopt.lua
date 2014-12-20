@@ -38,7 +38,7 @@ function stripComment(line)
 			end
 		end
 	end
-	return line;
+	return line, "";
 end
 
 
@@ -48,6 +48,9 @@ function parseInstruction(line)
 		return nil;
 	end
 	local name, line = parseWord(line);
+	if not name then
+		return nil;
+	end
 	name = name:lower();
 	if atEnd(line) then
 		return {name = name, args = {}};
@@ -56,7 +59,6 @@ function parseInstruction(line)
 	if atEnd(line) then
 		return {name = name, args = {arg1}};
 	end
-	print("arg1", arg1, line);
 	line = parseComma(line);
 	local arg2, line = parseArg(line);
 	if atEnd(line) then
@@ -263,7 +265,7 @@ function registerNameComparison(a, b)
 	end
 end
 
-function testSwap(a, b)
+function canSwap(a, b)
 	if conflicts(a, b) then
 		return false;
 	end
@@ -281,10 +283,44 @@ function testSwap(a, b)
 	end
 end
 
+function instructionOrderer(a, b)
+	print(a, b);
+	return not testSwap(a, b);
+end
+
 
 --------------------------------------------------------------------------------
 -- Tests
 
-local text = "\t   mov eax, [ebx + 8]";
+local file = readFile("kernel.c.asm");
+local instructions = {};
+for i = 1, #file do
+	local line, comment = file[i];
+	line, comment = stripComment(line);
+	local instruction = parseInstruction(line);
+	if instruction then
+		table.insert(instructions, parseInstruction(line));
+	else
+		table.insert(instructions, {name = line, args = {}});
+	end
+	local top = instructions[#instructions];
+	top.comment = (top.comment or "") .. comment;
+end
 
-local int = parseInstruction(text);
+-- Bubblesort
+for iter = 1, #instructions - 1 do
+	for j = 1, #instructions - 1 do
+		local a = instructions[j];
+		local b = instructions[j + 1];
+		if canSwap(a, b) then
+			instructions[j] = b;
+			instructions[j + 1] = a;
+		end
+	end
+end
+
+for i = 1, #instructions do
+	print(instructions[i].name
+		.. " " .. table.concat(instructions[i].args, ", ")
+		.. "; " .. instructions[i].comment);
+end
