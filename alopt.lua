@@ -7,7 +7,7 @@ function readFile(fname)
 end
 
 function stripComment(line)
-	local quoted = nil;
+	local quoted = false;
 	local escaped = false;
 	for i = 1, #line do
 		if escaped then
@@ -33,19 +33,20 @@ end
 
 function parseInstruction(line)
 	local name, line = parseWord(line);
-	local atEnd0 = atEnd(line);
-	local arg1, line = parseArg(line);
-	local atEnd1 = atEnd(line);
-	local line = parseComma(line);
-	local arg2, line = parseAg(line);
-	local atEnd2 = atEnd(line);
-	if atEnd2 then
-		return {name = name, args = {arg1, arg2} };
-	elseif atEnd1 then
-		return {name = name, args = {arg1}};
-	elseif atEnd0 then
+	if atEnd(line) then
 		return {name = name, args = {}};
 	end
+	local arg1, line = parseArg(line);
+	if atEnd(line) then
+		return {name = name, args = {arg1}};
+	end
+	print("arg1", arg1, line);
+	line = parseComma(line);
+	local arg2, line = parseArg(line);
+	if atEnd(line) then
+		return {name = name, args = {arg1, arg2}};
+	end
+	print("Three parameters?");
 end
 
 function trimFront(line)
@@ -53,11 +54,15 @@ function trimFront(line)
 end
 
 function atEnd(s)
-	return trimFront(s) == "";
+	return not s or trimFront(s) == "";
 end
 
 function parseComma(s)
-	return s and trimFront(s):sub(1, 1) == "," and s:sub(2);
+	s = trimFront(s);
+	if s:sub(1, 1) ~= "," then
+		print("parseComma got ", s);
+	end
+	return s:sub(2);
 end
 
 function parseWord(s)
@@ -73,7 +78,33 @@ function parseWord(s)
 end
 
 function parseArg(s)
-	s = 0
+	s = trimFront(s) .. ",";
+	if #s < 2 then
+		return nil;
+	end
+	local quoted = false;
+	local escaped = false;
+	for i = 1, #s do
+		local c = s:sub(i, i);
+		if escaped then
+			escaped = false;
+		else
+			if quoted then
+				if quoted == c or (quoted == "[" and c == "]") then
+					quoted = false;
+				end
+			else
+				if c == "`" or c == "'" or c == '"' or c == "[" then
+					quoted = c;
+				else
+					if c == "," then
+						return s:sub(1, i - 1), s:sub(i, - 2);
+						-- Done.
+					end
+				end
+			end
+		end
+	end
 	-- word eax
 	-- memory [eax]
 	-- literal "ab" 'ab' `\n\`` 0xff 35
@@ -213,9 +244,6 @@ function registerNameComparison(a, b)
 	end
 end
 
-print(registerNameComparison("ebx", "ax"));
-
-
 function testSwap(a, b)
 	if conflicts(a, b) then
 		return false;
@@ -233,3 +261,11 @@ function testSwap(a, b)
 		return a.arg[2] < b.arg[2];
 	end
 end
+
+
+--------------------------------------------------------------------------------
+-- Tests
+
+local text = "\t   mov eax, [ebx + 8]";
+
+local int = parseInstruction(text);
