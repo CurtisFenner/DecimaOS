@@ -177,8 +177,8 @@ function registerExtension(a)
 			print("Strange register", r);
 		end
 	end
-	for i = 1, #e do
-		table.insert(e[i]);
+	for i = 1, #extension do
+		table.insert(extension[i]);
 	end
 end
 
@@ -196,10 +196,25 @@ function conflicts(a, b)
 	return intersects(ain, bout) or intersects(bin, aout);
 end
 
-function registerNameComparison(a, b)
-	local acenter = math.ceil(#a / 2);
-	local amain = a:sub();
+function registerNameBreak(r)
+	local center = math.ceil(#r / 2);
+	local main = r:sub(center, center);
+	local sub = r:sub(1, center - 1) .. r:sub(center + 1);
+	return main, sub;
 end
+
+function registerNameComparison(a, b)
+	local amain, asub = registerNameBreak(a);
+	local bmain, bsub = registerNameBreak(b);
+	if amain == bmain then
+		return asub < bsub;
+	else
+		return amain < bmain;
+	end
+end
+
+print(registerNameComparison("ebx", "ax"));
+
 
 function testSwap(a, b)
 	if conflicts(a, b) then
