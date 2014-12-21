@@ -10,6 +10,7 @@ end
 
 local iotable = {};
 
+iotable.mov_2 = {ins = {"#2"}, outs = {"#1"}};
 iotable.add_2 = {ins = {"#1", "#2"}, outs = {"#1"}};
 iotable.imul_2 = {ins = {"#1", "#2"}, outs = {"#1"}};
 iotable.push_2 = {ins = {"esp", "#1"}, outs = {"esp", "[mem]"}};
@@ -91,7 +92,7 @@ function parseWord(s)
 	if s:sub(1, 1):find("%A") then
 		return nil;
 	end
-	local after = s:find("%A") or 0;
+	local after = s:find("%A") or (#s+1);
 	return s:sub(1, after - 1), s:sub(after);
 end
 
@@ -260,82 +261,294 @@ function registerNameComparison(a, b)
 	local amain, asub = registerNameBreak(a);
 	local bmain, bsub = registerNameBreak(b);
 	if amain == bmain then
-		return asub < bsub;
+		return asub <= bsub;
 	else
-		return amain < bmain;
+		return amain <= bmain;
 	end
 end
+
 
 function shouldSwap(a, b)
 	if conflicts(a, b) then
 		return false;
 	end
 	local rank = {};
-	rank.mov = 10;
-	rank.push = 99;
-	rank.pop = 1;
-	rank.imul = 15;
-	rank.iadd = 14;
-	if a.name ~= b.name then
+	rank.mov = 3;
+	rank.push = 1;
+	rank.pop = 2;
+	rank.imul = 5;
+	rank.iadd = 4;
+	if a.args[1] ~= b.args[1] and a.args[1] and b.args[1] then
+		local r = not registerNameComparison(a.args[1], b.args[1]);
+		return r;
+	end
+	if rank[a.name] ~= rank[b.name] then
 		return (rank[a.name] or 100) > (rank[b.name] or 100);
 	end
-	if a.arg[1] ~= b.arg[1] then
-		return not registerNameComparison(a.arg[1], b.arg[1]);
+	if a.args[2] and a.args[2] then
+		return not registerNameComparison(a.args[2], b.args[2]);
 	end
-	if a.arg[2] and a.arg[2] then
-		return not registerNameComparison(a.arg[2], b.arg[2]);
+end
+
+
+function reorderInstructions(instructions)
+	-- Bubblesort
+	local changed = false;
+	for iter = 1, #instructions - 1 do
+		for j = 1, #instructions - 1 do
+			local a = instructions[j];
+			local b = instructions[j + 1];
+			if shouldSwap(a, b) then
+				instructions[j] = b;
+				instructions[j + 1] = a;
+				changed = true;
+			end
+		end
 	end
+	return changed;
+end
+
+--------------------------------------------------------------------------------
+
+function parseLines(file)
+	local instructions = {};
+	for i = 1, #file do
+		local line, comment = file[i];
+		line, comment = stripComment(line);
+		if line:gsub("%s", "") ~= "" then
+			local instruction = parseInstruction(line);
+			if instruction then
+				table.insert(instructions, parseInstruction(line));
+			else
+				table.insert(instructions, {name = line, args = {}});
+			end
+			local top = instructions[#instructions];
+			top.comment = (top.comment or "") .. comment;
+		end
+	end
+	return instructions;
+end
+
+
+function stringInstructions(instructions)
+	local result = {};
+	for i = 1, #instructions do
+		table.insert(result,instructions[i].name
+			.. " " .. table.concat(instructions[i].args, ", ")
+			.. "; " .. instructions[i].comment);
+	end
+	return result;
 end
 
 
 --------------------------------------------------------------------------------
+
+local peepRules = {
+	{
+		name = "push pop",
+		from = { {"push", "$A"}, {"pop", "$B"} },
+		to = { {"mov", "$B", "$A"} }
+	},
+	{
+		name = "mov self",
+		from = { {"mov", "$A", "$A"} },
+		to = {}
+	},
+	{
+		name = "add 0",
+		from = {{"add", "$A", "0"}},
+		to = {}
+	},
+	{
+		name = "imul 1",
+		from = {{"imul", "$A", "1"}},
+		to = {}
+	},
+	{
+		name = "clobber mov",
+		from = {{"mov", "$A", "$B"}, {"mov", "$A", "$C"}},
+		to = {{"mov", "$A", "$C"}}
+	},
+	{
+		name = "double return",
+		from = {{"ret"}, {"ret"}},
+		to = {{"ret"}}
+	},
+	{
+		name = "double jump",
+		from = {{"jmp", "$A"}, {"jmp", "$B"}},
+		to = {{"jmp", "$A"}}
+	},
+	{
+		name = "mov pop",
+		from = {{"mov", "$A", "$B"}, {"pop", "$A"}},
+		to = {{"pop", "$A"}}
+	},
+	{
+		name = "literal add inline",
+		from = {{"mov", "$A", "#N"}, {"add", "$B", "$A"}},
+		to = {{"mov", "$A", "#N"}, {"add", "$B", "#N"}}
+	},
+	{
+		name = "literal imul inline",
+		from = {{"mov", "$A", "#N"}, {"imul", "$B", "$A"}},
+		to = {{"mov", "$A", "#N"}, {"imul", "$B", "#N"}}
+	},
+	{
+		name = "add two literals",
+		from = {{"add", "$E", "#A"}, {"add", "$E", "#B"}},
+		to = function(vars)
+			return {{ "add", vars["$E"], vars["#A"] .. " + " .. vars["#B"] }};
+		end
+	},
+	{
+		name = "clobbered by mov",
+		from = {{"mov", "$A", "$B"}, {"push","$A"}, {"mov", "$A", "$C"}},
+		to = {{"push", "$B"}, {"mov", "$A", "$C"}}
+	},
+	--{
+	--	name = "clobbered by pop",
+	--	from = {{"mov", "$A", "$B"}, {"push","$A"}, {"pop", "$A"}},
+	--	to = {{"push", "$B"}, {"pop", "$A"}}
+	--}
+};
+
+--[[
+mov eax, ecx
+mov ebx, eax
+
+mov eax, ecx
+mov ebx, ecx
+]]
+
+function testRule(instructions, index, rule)
+	local len = #rule.from;
+	local vars = {};
+	if index + len - 1 > #instructions then
+		-- Rule is longer than list.
+		return false;
+	end
+	for i = 1, len do
+		local instruction = instructions[i + index - 1];
+		if #instruction.args + 1 ~= #rule.from[i] then
+			return false;
+		end
+		if instruction.name:lower() ~= rule.from[i][1]:lower() then
+			return false;
+		end
+		for j = 1, #instruction.args do
+			local arg = instruction.args[j];
+			local compare = rule.from[i][j + 1];
+			if compare:sub(1, 1) == "$" then
+				if not vars[compare] then
+					vars[compare] = arg;
+				else
+					if vars[compare] ~= arg then
+						return false;
+					end
+				end
+			elseif compare:sub(1, 1) == "#" then
+				if not tonumber(arg:sub(1, 1)) then
+					return false;
+				end
+				if not vars[compare] then
+					vars[compare] = arg;
+				else
+					if vars[compare] ~= arg then
+						return false;
+					end
+				end
+			else
+				if compare ~= arg then
+					return false;
+				end
+			end
+		end
+	end
+	return vars;
+end
+
+-- attemptRule(instructions, rule)
+function attemptRule(instructions, rule, index)
+	if not index then
+		local substituted = false;
+		for i = #instructions, 1, -1 do
+			substituted = attemptRule(instructions, rule, i) or substituted;
+		end
+		return substituted;
+	end
+	--
+	local vars = testRule( instructions, index, rule );
+	if vars then
+		for j = 1, #rule.from do
+			table.remove(instructions, index);
+		end
+		if type(rule.to) == "function" then
+			local insert = rule.to(vars);
+			for j = 1, #insert do
+				local ins = insert[j];
+				local op = table.remove(ins, 1);
+				table.insert(instructions, index, {name = op, args = ins, comment = "optimize " .. rule.name} );
+			end
+		else
+			for j = 1, #rule.to do
+				local instruction = {};
+				local to = rule.to[j];
+				instruction.name = to[1];
+				instruction.args = {};
+				instruction.comment = "optimize " .. rule.name;
+				for k = 2, #to do
+					table.insert(instruction.args, vars[to[k]] or to[k]);
+				end
+				table.insert(instructions, index, instruction);
+			end
+		end
+		return true;
+	end
+	return false;
+end
+
+function optimize(instructions)
+	local loop = 0;
+	repeat
+		loop = loop + 1;
+		local changed = false;
+		for _, rule in ipairs(peepRules) do
+			changed = attemptRule(instructions, rule) or changed;
+		end
+		changed = reorderInstructions(instructions) or changed;
+		print("Loop " .. loop);
+	until (not changed) or loop > 20
+end
+
+
+--------------------------------------------------------------------------------
+
 -- Tests
 
 local file = readFile("kernel.c.asm");
+--file = {"push 1", "push eax", "pop eax", "pop ecx"};
 
+local instructions = parseLines(file);
+-- optimize(instructions);
 
+local result = stringInstructions( instructions );
 
-local instructions = {};
-for i = 1, #file do
-	local line, comment = file[i];
-	line, comment = stripComment(line);
-	local instruction = parseInstruction(line);
-	if instruction then
-		table.insert(instructions, parseInstruction(line));
-	else
-		table.insert(instructions, {name = line, args = {}});
-	end
-	local top = instructions[#instructions];
-	top.comment = (top.comment or "") .. comment;
+local f = io.open("kernelopt.asm", "w");
+for i = 1, #result do
+	f:write(result[i] .. "\n");
 end
 
--- Bubblesort
-for iter = 1, #instructions - 1 do
-	for j = 1, #instructions - 1 do
-		local a = instructions[j];
-		local b = instructions[j + 1];
-		if shouldSwap(a, b) then
-			instructions[j] = b;
-			instructions[j + 1] = a;
-		end
-	end
-end
-
-local result = {};
-
-for i = 1, #instructions do
-	table.insert(result,instructions[i].name
-		.. " " .. table.concat(instructions[i].args, ", ")
-		.. "; " .. instructions[i].comment);
-end
-
-local wid = 20;
+--[[
+-- Side by side comparison
+local wid = 30;
 for i = 1, #file do
 	local left = file[i];
 	if #left > wid - 3 then
 		left = left:sub(1, wid - 3) .. "...";
 	end
 	left = left .. (" "):rep(wid - #left) .. "    | ";
-	print(left .. result[i]);
+	print(left .. (result[i] or ""));
+	f:write(left .. (result[i] or "") .. "\n");
 end
-
+]]
