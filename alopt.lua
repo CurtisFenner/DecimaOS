@@ -422,12 +422,12 @@ local peepRules = {
 		to = {{"push", "$B"}, {"mov", "$A", "$C"}},
 		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}, ["$C"] = {"esp"}}
 	}
-	{
-		name = "clobbered by pop",
-		from = {{"mov", "$A", "$B"}, {"push","$A"}, {"pop", "$A"}},
-		to = {{"push", "$B"}, {"pop", "$A"}},
-		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}}
-	}
+	--{ -- Undeclared size errors
+	--	name = "clobbered by pop",
+	--	from = {{"mov", "$A", "$B"}, {"push","$A"}, {"pop", "$A"}},
+	--	to = {{"push", "$B"}, {"pop", "$A"}},
+	--	exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}}
+	--}
 };
 --[[
 mov eax, ecx
