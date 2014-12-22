@@ -3,7 +3,7 @@
 [org 0x9000]
 [bits 32]
 
-asm/kernel:
+kernel:
 call _fun_main
 jmp $
 

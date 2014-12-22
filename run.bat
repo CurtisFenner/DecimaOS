@@ -1,8 +1,28 @@
-C:/nasm/nasm.exe main.asm -f bin -o bin/bootloader.bin
-:: C:/nasm/nasm.exe kernel.c.asm -f bin -o bin/kernel.bin
-lua alopt.lua kernel.c.asm kernelopt.asm
-C:/nasm/nasm.exe kernelopt.asm -f bin -o bin/kernel.bin
-C:/nasm/nasm.exe ten.asm -f bin -o bin/ten.bin
-cat bin/bootloader.bin bin/kernel.bin > bin/osimage.bin
-cat bin/osimage.bin bin/ten.bin > bin/osimagepad.bin
-qemu-system-x86_64w bin/osimagepad.bin
+
+@echo off
+
+set prompt=$$$G$S
+
+echo "              Optimizing assembly files in /asm --> /asm_optimized"
+lua optimize_folder.lua asm
+
+
+
+cd asm_optimized
+echo "              Compiling main.asm"
+C:/nasm/nasm.exe   main.asm     -f bin -o ../bin/bootloader.bin
+echo "              Compiling kernel.asm"
+C:/nasm/nasm.exe   kernel.asm   -f bin -o ../bin/kernel.bin
+echo "              Compiling ten.asm"
+C:/nasm/nasm.exe   ten.asm      -f bin -o ../bin/ten.bin
+cd ..
+
+cd bin
+echo "              catting results main.asm"
+lua ../lcat.lua    bootloader.bin    kernel.bin    ten.bin       os_image.bin
+cd ..
+
+echo "              running os_image.bin"
+qemu-system-x86_64w bin/os_image.bin
+
+@echo on
