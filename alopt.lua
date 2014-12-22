@@ -16,6 +16,13 @@ iotable.imul_2 = {ins = {"#1", "#2"}, outs = {"#1"}};
 iotable.push_2 = {ins = {"esp", "#1"}, outs = {"esp", "[mem]"}};
 iotable.pop_1 = {ins = {"esp", "[mem]"}, outs = {"esp", "#1"}};
 
+local optimized = {};
+optimized.mov = true;
+optimized.add = true;
+optimized.push = true;
+optimized.pop = true;
+optimized.imul = true;
+
 --------------------------------------------------------------------------------
 
 function stripComment(line)
@@ -50,6 +57,9 @@ function parseInstruction(line)
 	end
 	local name, line = parseWord(line);
 	if not name then
+		return nil;
+	end
+	if not optimized[name:lower()] then
 		return nil;
 	end
 	name = name:lower();
@@ -333,9 +343,12 @@ end
 function stringInstructions(instructions)
 	local result = {};
 	for i = 1, #instructions do
-		table.insert(result,instructions[i].name
-			.. " " .. table.concat(instructions[i].args, ", ")
-			.. "; " .. instructions[i].comment);
+		local msg = instructions[i].name
+			.. " " .. table.concat(instructions[i].args, ", ");
+		if #instructions[i].comment > 1 then
+			msg = msg .. "; " .. instructions[i].comment;
+		end
+		table.insert(result, msg);
 	end
 	return result;
 end
@@ -347,7 +360,8 @@ local peepRules = {
 	{
 		name = "push pop",
 		from = { {"push", "$A"}, {"pop", "$B"} },
-		to = { {"mov", "$B", "$A"} }
+		to = { {"mov", "$B", "$A"} },
+		exceptions = { ["$A"] = {"esp"}, ["$B"] = {"esp"}}
 	},
 	{
 		name = "mov self",
@@ -382,7 +396,8 @@ local peepRules = {
 	{
 		name = "mov pop",
 		from = {{"mov", "$A", "$B"}, {"pop", "$A"}},
-		to = {{"pop", "$A"}}
+		to = {{"pop", "$A"}},
+		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}}
 	},
 	{
 		name = "literal add inline",
@@ -404,15 +419,16 @@ local peepRules = {
 	{
 		name = "clobbered by mov",
 		from = {{"mov", "$A", "$B"}, {"push","$A"}, {"mov", "$A", "$C"}},
-		to = {{"push", "$B"}, {"mov", "$A", "$C"}}
-	},
-	--{
-	--	name = "clobbered by pop",
-	--	from = {{"mov", "$A", "$B"}, {"push","$A"}, {"pop", "$A"}},
-	--	to = {{"push", "$B"}, {"pop", "$A"}}
-	--}
+		to = {{"push", "$B"}, {"mov", "$A", "$C"}},
+		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}, ["$C"] = {"esp"}}
+	}
+	{
+		name = "clobbered by pop",
+		from = {{"mov", "$A", "$B"}, {"push","$A"}, {"pop", "$A"}},
+		to = {{"push", "$B"}, {"pop", "$A"}},
+		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}}
+	}
 };
-
 --[[
 mov eax, ecx
 mov ebx, eax
@@ -442,6 +458,10 @@ function testRule(instructions, index, rule)
 			if compare:sub(1, 1) == "$" then
 				if not vars[compare] then
 					vars[compare] = arg;
+					if rule.exceptions and rule.exceptions[compare]
+						and contains(rule.exceptions[compare], arg:lower()) then
+						return false;
+					end
 				else
 					if vars[compare] ~= arg then
 						return false;
@@ -481,7 +501,14 @@ function attemptRule(instructions, rule, index)
 	local vars = testRule( instructions, index, rule );
 	if vars then
 		for j = 1, #rule.from do
-			table.remove(instructions, index);
+			local ik = table.remove(instructions, index);
+			if rule.name:find("clobbered") then
+				print(ik.name, unpack(ik.args)); -- TODO
+				--error("CHECK WHY CLOBBERED DOESNT WORK");
+			end
+		end
+		if rule.name:find("clobbered") then
+			print(" ");
 		end
 		if type(rule.to) == "function" then
 			local insert = rule.to(vars);
@@ -516,7 +543,7 @@ function optimize(instructions)
 		for _, rule in ipairs(peepRules) do
 			changed = attemptRule(instructions, rule) or changed;
 		end
-		changed = reorderInstructions(instructions) or changed;
+		-- changed = reorderInstructions(instructions) or changed;
 		print("Loop " .. loop);
 	until (not changed) or loop > 20
 end
@@ -530,7 +557,7 @@ local file = readFile("kernel.c.asm");
 --file = {"push 1", "push eax", "pop eax", "pop ecx"};
 
 local instructions = parseLines(file);
--- optimize(instructions);
+optimize(instructions);
 
 local result = stringInstructions( instructions );
 
