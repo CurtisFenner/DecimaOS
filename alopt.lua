@@ -543,7 +543,7 @@ function optimize(instructions)
 		for _, rule in ipairs(peepRules) do
 			changed = attemptRule(instructions, rule) or changed;
 		end
-		-- changed = reorderInstructions(instructions) or changed;
+		changed = reorderInstructions(instructions) or changed;
 		print("Loop " .. loop);
 	until (not changed) or loop > 20
 end
