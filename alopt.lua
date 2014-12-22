@@ -500,15 +500,14 @@ function attemptRule(instructions, rule, index)
 	--
 	local vars = testRule( instructions, index, rule );
 	if vars then
+		if rule.show then
+			print("\n" .. rule.name .. ":");
+		end
 		for j = 1, #rule.from do
 			local ik = table.remove(instructions, index);
-			if rule.name:find("clobbered") then
-				print(ik.name, unpack(ik.args)); -- TODO
-				--error("CHECK WHY CLOBBERED DOESNT WORK");
+			if rule.show then
+				print("", ik.name, unpack(ik.args));
 			end
-		end
-		if rule.name:find("clobbered") then
-			print(" ");
 		end
 		if type(rule.to) == "function" then
 			local insert = rule.to(vars);
@@ -544,7 +543,7 @@ function optimize(instructions)
 			changed = attemptRule(instructions, rule) or changed;
 		end
 		changed = reorderInstructions(instructions) or changed;
-		print("Loop " .. loop);
+		print("Optimization loop " .. loop);
 	until (not changed) or loop > 20
 end
 
@@ -553,7 +552,8 @@ end
 
 -- Tests
 
-local file = readFile("kernel.c.asm");
+
+local file = readFile(arg[1]);
 --file = {"push 1", "push eax", "pop eax", "pop ecx"};
 
 local instructions = parseLines(file);
@@ -561,7 +561,7 @@ optimize(instructions);
 
 local result = stringInstructions( instructions );
 
-local f = io.open("kernelopt.asm", "w");
+local f = io.open( arg[2] or "optout.asm", "w");
 for i = 1, #result do
 	f:write(result[i] .. "\n");
 end

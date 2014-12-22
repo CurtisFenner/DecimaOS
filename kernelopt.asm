@@ -20,8 +20,8 @@ mov eax, esp
 add eax, 4
 mov ebx, eax; optimize push pop
 mov eax, [ebx]
-mov ecx, eax; optimize push pop
 pop ebx
+mov ecx, eax; optimize push pop
 mov eax, ecx; optimize clobbered by mov
 mov ecx, [ebx]; optimize push pop
 add eax, ecx
@@ -29,9 +29,7 @@ mov ebx, eax; optimize push pop
 mov eax, 0; optimize clobbered by mov
 mov ebx, [ebx]; optimize push pop
 mov al, bl;  cast char -> int
-push eax
 mov ecx, 0; optimize push pop
-pop eax
 cmp eax, ecx ;  > here and down
 jg _positive_3 
 push dword 0
@@ -49,8 +47,8 @@ mov eax, esp
 add eax, 4
 mov ebx, eax; optimize push pop
 mov eax, [ebx]
-mov ecx, eax; optimize push pop
 pop ebx
+mov ecx, eax; optimize push pop
 mov eax, [ebx]
 add eax, ecx
 push eax;  int-type addition
@@ -65,9 +63,8 @@ call _fun_console_index ;  void console_index
 add esp, 8;  (cleanup parameters)
 push eax;  returned value
 mov eax, esp
-push eax;  c
+mov ebx, eax; optimize push pop
 mov ecx, 0; optimize push pop
-pop ebx
 mov eax, ecx; optimize clobbered by mov
 mov ecx, [ebx]; optimize push pop
 add eax, ecx
@@ -79,8 +76,8 @@ mov eax, esp
 add eax, 12
 mov ebx, eax; optimize push pop
 mov eax, [ebx]
-mov ecx, eax; optimize push pop
 pop ebx
+mov ecx, eax; optimize push pop
 mov eax, ecx; optimize clobbered by mov
 mov ecx, [ebx]; optimize push pop
 add eax, ecx
@@ -89,9 +86,8 @@ mov eax, [ebx]
 pop ebx
 mov [ebx], al;  assignment
 mov eax, esp
-push eax;  c
+mov ebx, eax; optimize push pop
 mov ecx, 1; optimize push pop
-pop ebx
 mov eax, ecx; optimize clobbered by mov
 mov ecx, [ebx]; optimize push pop
 add eax, ecx
@@ -107,13 +103,12 @@ add eax, 4
 push eax;  i
 mov eax, esp
 add eax, 8
-push eax;  i
-mov ecx, 1; optimize push pop
-pop ebx
+mov ebx, eax; optimize push pop
 mov eax, [ebx]
-add eax, ecx
+add eax, 1; optimize literal add inline
 pop ebx
 mov [ebx], eax;  assignment
+mov ecx, 1; optimize literal add inline
 add esp, 4
 jmp _while_pre_condition_2 
 _while_end_2: ;  }
@@ -130,12 +125,10 @@ push 0
 _while_pre_condition_4: 
 mov eax, esp
 push eax;  i
-push 80
-mov ecx, 25; optimize push pop
-pop eax
-imul eax, ecx
-mov ecx, eax; optimize push pop
+mov eax, 80; optimize push pop
+imul eax, 25; optimize literal imul inline
 pop ebx
+mov ecx, eax; optimize clobber mov
 mov eax, [ebx]
 cmp eax, ecx ;  < here and down
 jl _positive_5 
@@ -152,13 +145,11 @@ add eax, 4
 push eax;  screen
 mov eax, esp
 add eax, 4
-push eax;  i
-mov ecx, 2; optimize push pop
-pop ebx
+mov ebx, eax; optimize push pop
 mov eax, [ebx]
-imul eax, ecx
-mov ecx, eax; optimize push pop
+imul eax, 2; optimize literal imul inline
 pop ebx
+mov ecx, eax; optimize clobber mov
 mov eax, ecx; optimize clobbered by mov
 mov ecx, [ebx]; optimize push pop
 add eax, ecx
@@ -173,13 +164,12 @@ mov eax, esp
 push eax;  i
 mov eax, esp
 add eax, 4
-push eax;  i
-mov ecx, 1; optimize push pop
-pop ebx
+mov ebx, eax; optimize push pop
 mov eax, [ebx]
-add eax, ecx
+add eax, 1; optimize literal add inline
 pop ebx
 mov [ebx], eax;  assignment
+mov ecx, 1; optimize literal add inline
 jmp _while_pre_condition_4 
 _while_end_4: ;  }
 add esp, 8
@@ -191,20 +181,15 @@ add eax, 12
 push eax;  x
 mov eax, esp
 add eax, 12
-push eax;  y
-mov ecx, 80; optimize push pop
-pop ebx
+mov ebx, eax; optimize push pop
 mov eax, [ebx]
-imul eax, ecx
-mov ecx, eax; optimize push pop
+imul eax, 80; optimize literal imul inline
 pop ebx
+mov ecx, eax; optimize clobber mov
 mov eax, [ebx]
 add eax, ecx
-push eax;  int-type addition
-mov ecx, 2; optimize push pop
-pop eax
-imul eax, ecx
-mov ecx, eax; optimize push pop
+imul eax, 2; optimize literal imul inline
+mov ecx, eax; optimize clobber mov
 mov eax, ecx; optimize push pop
 pop ecx
 add eax, ecx
