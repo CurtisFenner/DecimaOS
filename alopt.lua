@@ -358,76 +358,68 @@ end
 
 local peepRules = {
 	{
-		name = "push pop",
-		from = { {"push", "$A"}, {"pop", "$B"} },
-		to = { {"mov", "$B", "$A"} },
-		exceptions = { ["$A"] = {"esp"}, ["$B"] = {"esp"}}
+		  name = "push pop push"
+		, from = {{"push","$A"}, {"pop","$B"}, {"push","$X"} }
+		, to = {{"mov", "$B", "$A"},{"push","$X"}}
+		, exceptions = { ["$A"] = {"esp"}, ["$B"] = {"esp"} }
 	},
 	{
 		name = "mov self",
 		from = { {"mov", "$A", "$A"} },
 		to = {}
-	},
-	{
+	}
+	,{
 		name = "add 0",
 		from = {{"add", "$A", "0"}},
 		to = {}
-	},
-	{
+	}
+	,{
 		name = "imul 1",
 		from = {{"imul", "$A", "1"}},
 		to = {}
-	},
-	{
+	}
+	,{
 		name = "clobber mov",
 		from = {{"mov", "$A", "$B"}, {"mov", "$A", "$C"}},
 		to = {{"mov", "$A", "$C"}}
-	},
-	{
+	}
+	,{
 		name = "double return",
 		from = {{"ret"}, {"ret"}},
 		to = {{"ret"}}
-	},
-	{
+	}
+	,{
 		name = "double jump",
 		from = {{"jmp", "$A"}, {"jmp", "$B"}},
 		to = {{"jmp", "$A"}}
-	},
-	{
+	}
+	,{
 		name = "mov pop",
 		from = {{"mov", "$A", "$B"}, {"pop", "$A"}},
 		to = {{"pop", "$A"}},
 		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}}
-	},
-	{
+	}
+	,{
 		name = "literal add inline",
 		from = {{"mov", "$A", "#N"}, {"add", "$B", "$A"}},
 		to = {{"mov", "$A", "#N"}, {"add", "$B", "#N"}}
-	},
-	{
+	}
+	,{
 		name = "literal imul inline",
 		from = {{"mov", "$A", "#N"}, {"imul", "$B", "$A"}},
 		to = {{"mov", "$A", "#N"}, {"imul", "$B", "#N"}}
-	},
-	{
+	}
+	,{
 		name = "add two literals",
 		from = {{"add", "$E", "#A"}, {"add", "$E", "#B"}},
 		to = function(vars)
 			return {{ "add", vars["$E"], vars["#A"] .. " + " .. vars["#B"] }};
 		end
-	},
-	{
-		name = "clobbered by mov",
-		from = {{"mov", "$A", "$B"}, {"push","$A"}, {"mov", "$A", "$C"}},
-		to = {{"push", "$B"}, {"mov", "$A", "$C"}},
-		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}, ["$C"] = {"esp"}}
 	}
-	--{ -- Undeclared size errors
-	--	name = "clobbered by pop",
-	--	from = {{"mov", "$A", "$B"}, {"push","$A"}, {"pop", "$A"}},
-	--	to = {{"push", "$B"}, {"pop", "$A"}},
-	--	exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}}
-	--}
+	,	{	name = "back-forth move"
+		,	from = {{"mov", "$A", "$B"},{"mov", "$B", "$A"}}
+		,	to   = {{"mov", "$A", "$B"}}
+		}
 };
 --[[
 mov eax, ecx
@@ -478,6 +470,24 @@ function testRule(instructions, index, rule)
 						return false;
 					end
 				end
+			elseif compare:sub(1,1) == "%" then
+				arg = arg:lower();
+				if arg == "esp" or arg == "ebp" or arg == "sp" or arg == "bp" then
+				elseif arg:len() == 2 then
+					if not contains({"a","b","c","d","e",},arg:sub(1,1)) or not contains({"x","l","h"},arg:sub(2,2)) then
+						return false;
+					end
+				elseif arg:len() == 3 then
+					if arg:sub(1,1) ~= "e" or arg:sub(3,3) ~= "x" or not contains({"a","b","c","d","e",},arg:sub(1,1)) then
+						return false;
+					end
+				else
+					return false
+				end
+				if vars[compare] and vars[compare] ~= arg then
+					return false
+				end
+				vars[compare] = arg;
 			else
 				if compare ~= arg then
 					return false;
@@ -503,26 +513,37 @@ function attemptRule(instructions, rule, index)
 		if rule.show then
 			print("\n" .. rule.name .. ":");
 		end
+		local wholeComment = "";
 		for j = 1, #rule.from do
 			local ik = table.remove(instructions, index);
+			if wholeComment ~= "" then
+				wholeComment = wholeComment .. " & ";
+			end
+			wholeComment = wholeComment .. ik.comment;
 			if rule.show then
 				print("", ik.name, unpack(ik.args));
 			end
 		end
-		if type(rule.to) == "function" then
+
+		local newComment = "optimize " .. rule.name;
+		if wholeComment ~= "" then
+			newComment = wholeComment .. " || " .. newComment;
+		end
+
+		if type(rule.to) == "function" then -- iterate backwards since we insert them all into the new spot
 			local insert = rule.to(vars);
-			for j = 1, #insert do
+			for j = #insert, 1, -1 do
 				local ins = insert[j];
 				local op = table.remove(ins, 1);
-				table.insert(instructions, index, {name = op, args = ins, comment = "optimize " .. rule.name} );
+				table.insert(instructions, index, {name = op, args = ins, comment = newComment} );
 			end
 		else
-			for j = 1, #rule.to do
+			for j = #rule.to, 1, -1 do
 				local instruction = {};
 				local to = rule.to[j];
 				instruction.name = to[1];
 				instruction.args = {};
-				instruction.comment = "optimize " .. rule.name;
+				instruction.comment = newComment;
 				for k = 2, #to do
 					table.insert(instruction.args, vars[to[k]] or to[k]);
 				end
