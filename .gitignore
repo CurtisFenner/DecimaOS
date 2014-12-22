@@ -48,3 +48,6 @@ Temporary Items
 *.pdf
 *.bin
 *.png
+
+asm_optimized
+bin
