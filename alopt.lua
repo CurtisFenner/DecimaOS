@@ -320,11 +320,24 @@ end
 
 --------------------------------------------------------------------------------
 
+function trim(s)
+	return (s:gsub("^%s*(.-)%s*$", "%1"));
+end
+
 function parseLines(file)
+
+	local mode = "normal";
+
 	local instructions = {};
 	for i = 1, #file do
 		local line, comment = file[i];
 		line, comment = stripComment(line);
+
+
+		if trim(comment):sub(1,#"@optimize ") == "@optimize " then
+			mode = trim(comment):sub(#"@optimize "+1);
+		end
+
 		if line:gsub("%s", "") ~= "" then
 			local instruction = parseInstruction(line);
 			if instruction then
@@ -336,7 +349,10 @@ function parseLines(file)
 			top.comment = (top.comment or "") .. comment;
 		end
 	end
-	return instructions;
+
+	print("Optimization Mode: " .. mode:lower());
+
+	return instructions, mode:lower();
 end
 
 
@@ -357,7 +373,13 @@ end
 --------------------------------------------------------------------------------
 
 local peepRules = {
-	{
+	
+	{ name = "triple clobber pop",
+	  from = {{"pop", "$A"},{"pop", "$B"}, {"pop", "$A"}},
+	  to   = {{"pop", "$B"},{"pop", "$B"}, {"pop", "$A"}},
+	  exceptions = { ["$A"] = {"esp"}, ["$B"] = {"esp"}}
+	}
+	,{
 		  name = "push pop push"
 		, from = {{"push","$A"}, {"pop","$B"}, {"push","$X"} }
 		, to = {{"mov", "$B", "$A"},{"push","$X"}}
@@ -419,6 +441,10 @@ local peepRules = {
 	,	{	name = "back-forth move"
 		,	from = {{"mov", "$A", "$B"},{"mov", "$B", "$A"}}
 		,	to   = {{"mov", "$A", "$B"}}
+		}
+	,	{	name = "move push move"
+		,	from = {{"mov", "$A", "%B"}, {"push", "$A"}, {"mov", "$A", "$C"}}
+		,	to   = {{"push", "%B"}, {"mov", "$A", "$C"}}
 		}
 };
 --[[
@@ -555,13 +581,15 @@ function attemptRule(instructions, rule, index)
 	return false;
 end
 
-function optimize(instructions)
+function optimize(instructions, optimizeMode)
 	local loop = 0;
 	repeat
 		loop = loop + 1;
 		local changed = false;
 		for _, rule in ipairs(peepRules) do
-			changed = attemptRule(instructions, rule) or changed;
+			if rule.mode == nil or rule.mode == optimizeMode then
+				changed = attemptRule(instructions, rule) or changed;
+			end
 		end
 		changed = reorderInstructions(instructions) or changed;
 		print("Optimization loop " .. loop);
@@ -577,8 +605,8 @@ end
 local file = readFile(arg[1]);
 --file = {"push 1", "push eax", "pop eax", "pop ecx"};
 
-local instructions = parseLines(file);
-optimize(instructions);
+local instructions, optimizeMode = parseLines(file);
+optimize(instructions, optimizeMode);
 
 local result = stringInstructions( instructions );
 

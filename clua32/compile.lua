@@ -58,7 +58,7 @@ function parseNumber(n)
 end
 
 function compile(declarations, main, label)
-	_o_utput = (label or main) .. ":\ncall _fun_" .. main .. "\njmp $\n\n";
+	_o_utput = ";@optimize extended\n" .. (label or main) .. ":\ncall _fun_" .. main .. "\njmp $\n\n";
 	uniquen = 0;
 
 	for _, dec in pairs(declarations) do
