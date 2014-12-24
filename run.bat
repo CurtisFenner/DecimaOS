@@ -6,6 +6,8 @@ set prompt=$$$G$S
 echo "              Optimizing assembly files in /asm --> /asm_optimized"
 lua optimize_folder.lua asm
 
+echo "              Optimizing assembly files in /asm_compiled --> /asm_optimized"
+lua optimize_folder.lua asm_compiled asm_optimized
 
 
 cd asm_optimized
