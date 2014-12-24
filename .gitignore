@@ -49,5 +49,5 @@ Temporary Items
 *.bin
 *.png
 
-asm_optimized
-bin
+asm_optimized/
+bin/
