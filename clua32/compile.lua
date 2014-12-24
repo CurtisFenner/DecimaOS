@@ -1,5 +1,5 @@
 local uniquen = 0;
-local _o_utput = "";
+local output = "";
 
 --------------------------------------------------------------------------------
 
@@ -11,11 +11,11 @@ function emit(str, stacksure)
 		print("!!!WARNING!!!\n\tEmit passed `" .. str .. "` but not pushsure", stacksure);
 		print(debug.traceback());
 	end
-	_o_utput = _o_utput .. "\n" .. str;
+	output = output .. "\n" .. str;
 end
 
 function comment(str)
-	_o_utput = _o_utput .. "; " .. str:gsub("\n", "\n; ") .. "\n";
+	output = output .. "; " .. str:gsub("\n", "\n; ") .. "\n";
 end
 
 function peek(stack)
@@ -58,7 +58,7 @@ function parseNumber(n)
 end
 
 function compile(declarations, main, label)
-	_o_utput = ";@optimize extended\n" .. (label or main) .. ":\ncall _fun_" .. main .. "\njmp $\n\n";
+	output = ";@optimize extended\n" .. (label or main) .. ":\ncall _fun_" .. main .. "\njmp $\n\n";
 	uniquen = 0;
 
 	for _, dec in pairs(declarations) do
@@ -106,7 +106,7 @@ function compile(declarations, main, label)
 		end
 		emit(""); -- Empty space
 	end
-	return _o_utput;
+	return output;
 end
 
 function dform(n)
