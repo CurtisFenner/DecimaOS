@@ -1,0 +1,126 @@
+
+"triple clobber pop"
+{
+	pop $A
+	pop $B
+	pop $A
+}
+{
+	pop $B
+	pop $B
+	pop $A
+}
+exclude $A { esp }
+exclude $B { esp }
+
+
+"push pop push"
+{
+	push $A
+	pop $B
+	push $X
+}
+{
+	mov $B, $A
+	push $X
+}
+exclude $A { esp }
+exclude $B { esp }
+
+"self move"
+{
+	mov $A, $A
+}
+{
+}
+
+"add 0"
+{
+	add $A, 0
+}
+{
+}
+
+"imul 1"
+{
+	imul $A, 1
+}
+{
+}
+
+"clobber mov"
+{
+	mov $A, $B
+	mov $A, $C
+}
+{
+	mov $A, $C
+}
+
+"double return"
+{
+	ret
+	ret
+}
+{
+	ret
+}
+
+"double jump"
+{
+	jmp $A
+	jmp $B
+}
+{
+	jmp $A
+}
+
+"move pop"
+{
+	mov $A, $B
+	pop $A
+}
+{
+	pop $A
+}
+exclude $A { esp }
+
+"literal add inline"
+{
+	mov $A, #N
+	add $B, $A
+}
+{
+	mov $A, #N
+	add $B, #N
+}
+
+"literal imul inline"
+{
+	mov $A, #N
+	imul $B, $A
+}
+{
+	mov $A, #N
+	imul $B, #N
+}
+
+"back-forth move"
+{
+	mov $A, $B
+	mov $B, $A
+}
+{
+	mov $A, $B
+}
+
+"move push move"
+{
+	mov $A, %B
+	push $A
+	mov $A, $C
+}
+{
+	push %B
+	mov $A, $C
+}

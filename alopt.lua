@@ -372,81 +372,218 @@ end
 
 --------------------------------------------------------------------------------
 
-local peepRules = {
-	
-	{ name = "triple clobber pop",
-	  from = {{"pop", "$A"},{"pop", "$B"}, {"pop", "$A"}},
-	  to   = {{"pop", "$B"},{"pop", "$B"}, {"pop", "$A"}},
-	  exceptions = { ["$A"] = {"esp"}, ["$B"] = {"esp"}}
-	}
-	,{
-		  name = "push pop push"
-		, from = {{"push","$A"}, {"pop","$B"}, {"push","$X"} }
-		, to = {{"mov", "$B", "$A"},{"push","$X"}}
-		, exceptions = { ["$A"] = {"esp"}, ["$B"] = {"esp"} }
-	},
-	{
-		name = "mov self",
-		from = { {"mov", "$A", "$A"} },
-		to = {}
-	}
-	,{
-		name = "add 0",
-		from = {{"add", "$A", "0"}},
-		to = {}
-	}
-	,{
-		name = "imul 1",
-		from = {{"imul", "$A", "1"}},
-		to = {}
-	}
-	,{
-		name = "clobber mov",
-		from = {{"mov", "$A", "$B"}, {"mov", "$A", "$C"}},
-		to = {{"mov", "$A", "$C"}}
-	}
-	,{
-		name = "double return",
-		from = {{"ret"}, {"ret"}},
-		to = {{"ret"}}
-	}
-	,{
-		name = "double jump",
-		from = {{"jmp", "$A"}, {"jmp", "$B"}},
-		to = {{"jmp", "$A"}}
-	}
-	,{
-		name = "mov pop",
-		from = {{"mov", "$A", "$B"}, {"pop", "$A"}},
-		to = {{"pop", "$A"}},
-		exceptions = {["$A"] = {"esp"}, ["$B"] = {"esp"}}
-	}
-	,{
-		name = "literal add inline",
-		from = {{"mov", "$A", "#N"}, {"add", "$B", "$A"}},
-		to = {{"mov", "$A", "#N"}, {"add", "$B", "#N"}}
-	}
-	,{
-		name = "literal imul inline",
-		from = {{"mov", "$A", "#N"}, {"imul", "$B", "$A"}},
-		to = {{"mov", "$A", "#N"}, {"imul", "$B", "#N"}}
-	}
-	,{
-		name = "add two literals",
-		from = {{"add", "$E", "#A"}, {"add", "$E", "#B"}},
-		to = function(vars)
-			return {{ "add", vars["$E"], vars["#A"] .. " + " .. vars["#B"] }};
+function locOf(source, n)
+	local line = 1;
+	local column = 1;
+	for i = 1, n do
+		local c = source:sub(i,i);
+		if c == "\n" then
+			line = line + 1;
+			column = 1;
+		elseif c == "\t" then
+			column = math.ceil(column / 4) * 4;
+			column = column + 1;
+		else
+			column = column + 1;
 		end
-	}
-	,	{	name = "back-forth move"
-		,	from = {{"mov", "$A", "$B"},{"mov", "$B", "$A"}}
-		,	to   = {{"mov", "$A", "$B"}}
-		}
-	,	{	name = "move push move"
-		,	from = {{"mov", "$A", "%B"}, {"push", "$A"}, {"mov", "$A", "$C"}}
-		,	to   = {{"push", "%B"}, {"mov", "$A", "$C"}}
-		}
-};
+	end
+	return line .. ":" .. column;
+end
+
+
+local pi = 1;
+local pis = {};
+
+function pSave()
+	pis[#pis+1] = pi;
+end
+function pRestore()
+	pi = pis[#pis];
+	pis[#pis] = nil;
+end
+function pContinue()
+	pis[#pis] = nil;
+end
+
+local pfile = io.open("optimizations.txt");
+local psource = pfile:read("*all");
+pfile:close();
+
+function pPeek()
+	return psource:sub(pi,pi);
+end
+function pForward(n)
+	pi = pi + (n or 1);
+	return psource:sub(pi - (n or 1), pi-1);
+end
+
+function pAtEnd()
+	return pi > #psource;
+end
+
+function pSkipWhite()
+	while not pAtEnd() and pPeek():match("%s") do
+		pForward();
+	end
+end
+function pWord(matcher)
+	local w = "";
+	while not pAtEnd() and pPeek():match(matcher) do
+		w = w .. pForward();
+	end
+	return w;
+end
+
+function pWhiteWord(matcher)
+	pSkipWhite();
+	return pWord(matcher);
+end
+
+function pParseArg()
+	return pWhiteWord("[%w%%#$_]");
+end
+
+function pCheck(c)
+	pSkipWhite();
+	if pAtEnd() then
+		return false;
+	end
+	return psource:sub(pi, pi+#c-1) == c;
+end
+
+function pExpect(c)
+	if not pCheck(c) then
+		error("Expected " .. c .. " at " .. locOf(psource, pi));
+	end
+	pForward(#c);
+end
+
+local pdi = {};
+
+function delimitStart(match)
+	pSave();
+	while not pAtEnd() and not pPeek():match(match) do
+		pForward();
+	end
+	pdi[#pdi+1] = pi;
+	pRestore();
+end
+
+function delimitCheck()
+	return pi < pdi[#pdi];
+end
+
+function delimitEnd()
+	pdi[#pdi] = nil;
+end
+
+function pParseArgs()
+	local list = {};
+	delimitStart("\n");
+	pSkipWhite();
+	while delimitCheck() do
+		if #list ~= 0 then
+			if not pCheck(",") then
+				break;
+			end
+			pExpect(",");
+		end
+		
+		
+		
+		local arg = pParseArg();
+		if not arg or arg == "" then
+			break;
+		end
+		list[#list+1] = arg;
+	end
+	delimitEnd();
+	return list;
+end
+
+function pParseInstruction()
+	if pCheck("}") then
+		return nil;
+	end
+	local op = pWord("%w");
+	if op == "" then
+		return nil;
+	end
+	local args = pParseArgs();
+	local r = {op};
+	for i = 1, #args do
+		r[i+1] = args[i];
+	end
+	return r;
+end
+
+function pParseBody()
+	pExpect("{");
+	local ints = {};
+	repeat
+		local int = pParseInstruction();
+		if int then
+			ints[#ints+1] = int;
+		end
+	until int == nil
+	pExpect("}");
+	return ints;
+end
+
+function pParseExclude()
+	if not pCheck("exclude") then
+		return nil;
+	end
+	pExpect("exclude");
+	local name = pParseArg();
+	pExpect("{");
+	local values = pParseArgs();
+	pExpect("}");
+	return {name = name, values = values};
+end
+
+function pParseExcludes()
+	local excludes = {};
+	repeat
+		local exclude = pParseExclude();
+		if exclude then
+			excludes[exclude.name] = exclude.values;
+		end
+	until exclude == nil
+	return excludes;
+end
+
+function pParseRule()
+	pSkipWhite();
+	if pAtEnd() then
+		return nil;
+	end
+	pExpect("\"");
+	local name = pWord("[^\"]");
+	pExpect("\"");
+	local from = pParseBody();
+	local to = pParseBody();
+
+	local excludes = pParseExcludes();
+
+	return {name = name, from = from, to = to, exceptions = excludes};
+
+end
+
+function pParseRules()
+	local rules = {};
+	repeat
+		local rule = pParseRule();
+		if rule then
+			rules[#rules+1] = rule;
+		end
+	until rule == nil
+	return rules;
+end
+
+local peepRules = pParseRules();
+
+
 --[[
 mov eax, ecx
 mov ebx, eax

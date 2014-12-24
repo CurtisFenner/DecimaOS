@@ -32,9 +32,11 @@ push ecx;  now rvalues
 pop eax
 pop ecx
 add eax, ecx
-mov ebx, eax;  dereference &  & optimize clobbered by mov || optimize push pop push
-push [ebx];  dereference &  & optimize clobbered by mov || optimize push pop push
-mov eax, 0; optimize clobbered by mov
+push eax;  dereference
+pop ebx
+mov eax, [ebx]
+push eax
+mov eax, 0
 pop ebx
 mov al, bl;  cast char -> int
 push eax
@@ -224,9 +226,8 @@ push eax
 pop eax
 pop ebx
 mov [ebx], al;  assignment
-mov eax, esp
-push eax;  i
-mov eax, esp
+push esp;  i &  || optimize move push move
+mov eax, esp;  i &  || optimize move push move
 add eax, 4
 push eax;  i
 push 1;  addition
@@ -299,5 +300,6 @@ mov ecx, [ebx]
 mov eax, [ecx]
 mov [ebx], eax;  convert to rvalue
 call _fun_console_printc ;  void console_printc
-add esp, 16 + 4;  (cleanup parameters) &  || optimize add two literals
+add esp, 16;  (cleanup parameters)
+add esp, 4
 ret 

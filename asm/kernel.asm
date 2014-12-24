@@ -3,6 +3,7 @@
 [org 0x9000]
 [bits 32]
 
+;@optimize extended
 kernel:
 call _fun_main
 jmp $
