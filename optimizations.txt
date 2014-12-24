@@ -14,6 +14,8 @@ exclude $A { esp }
 exclude $B { esp }
 
 
+
+
 "push pop push"
 {
 	push $A
@@ -27,12 +29,16 @@ exclude $B { esp }
 exclude $A { esp }
 exclude $B { esp }
 
+
+
 "self move"
 {
 	mov $A, $A
 }
 {
 }
+
+
 
 "add 0"
 {
@@ -41,12 +47,18 @@ exclude $B { esp }
 {
 }
 
+
+
 "imul 1"
 {
 	imul $A, 1
 }
 {
 }
+
+
+
+
 
 "clobber mov"
 {
@@ -57,6 +69,9 @@ exclude $B { esp }
 	mov $A, $C
 }
 
+
+
+
 "double return"
 {
 	ret
@@ -66,6 +81,8 @@ exclude $B { esp }
 	ret
 }
 
+
+
 "double jump"
 {
 	jmp $A
@@ -74,6 +91,9 @@ exclude $B { esp }
 {
 	jmp $A
 }
+
+
+
 
 "move pop"
 {
@@ -85,6 +105,8 @@ exclude $B { esp }
 }
 exclude $A { esp }
 
+
+
 "literal add inline"
 {
 	mov $A, #N
@@ -94,6 +116,9 @@ exclude $A { esp }
 	mov $A, #N
 	add $B, #N
 }
+
+
+
 
 "literal imul inline"
 {
@@ -105,6 +130,10 @@ exclude $A { esp }
 	imul $B, #N
 }
 
+
+
+
+
 "back-forth move"
 {
 	mov $A, $B
@@ -113,6 +142,10 @@ exclude $A { esp }
 {
 	mov $A, $B
 }
+
+
+
+
 
 "move push move"
 {
