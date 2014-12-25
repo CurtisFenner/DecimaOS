@@ -57,10 +57,9 @@ function parseNumber(n)
 	return tonumber(n), "int"; -- TODO FIX
 end
 
-function compile(declarations, main, label)
-	output = ";@optimize extended\n" .. (label or main) .. ":\ncall _fun_" .. main .. "\njmp $\n\n";
+function compile(declarations)
+	output = "";
 	uniquen = 0;
-
 	for _, dec in pairs(declarations) do
 		if dec.sort ~= "definition" then
 			replaceStringLiterals(dec, declarations);

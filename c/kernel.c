@@ -2,6 +2,8 @@
 // Screen is 640 x 480
 // Screen is 80 x 25 chars
 
+#include <asmio>
+
 void console_fill(char w) {
 	char * screen = (char *) 0x000b8000;
 	int i = 0;
