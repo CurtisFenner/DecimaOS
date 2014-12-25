@@ -1,8 +1,8 @@
 local data = "";
 
-for i = 1,#arg-1 do
+for i = 1, #arg-1 do
 	local cmd = arg[i];
-	local file = io.open(cmd,"rb");
+	local file = io.open(cmd, "rb");
 	data = data .. file:read("*all");
 	file:close();
 end

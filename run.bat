@@ -3,28 +3,24 @@
 
 set prompt=$$$G$S
 
-echo "              Optimizing assembly files in /asm --> /asm_optimized"
 lua optimize_folder.lua asm
-
-echo "              Optimizing assembly files in /asm_compiled --> /asm_optimized"
 lua optimize_folder.lua asm_compiled asm_optimized
 
-
 cd asm_optimized
-echo "              Compiling main.asm"
+echo nasm main.asm
 C:/nasm/nasm.exe   main.asm     -f bin -o ../bin/bootloader.bin
-echo "              Compiling kernel.asm"
+echo nasm kernel.asm
 C:/nasm/nasm.exe   kernel.asm   -f bin -o ../bin/kernel.bin
-echo "              Compiling ten.asm"
+echo nasm ten.asm
 C:/nasm/nasm.exe   ten.asm      -f bin -o ../bin/ten.bin
 cd ..
 
 cd bin
-echo "              catting results main.asm"
+echo Catting into os_image.bin
 lua ../lcat.lua    bootloader.bin    kernel.bin    ten.bin       os_image.bin
 cd ..
 
-echo "              running os_image.bin"
+echo Qemu
 qemu-system-x86_64w bin/os_image.bin
 
 @echo on

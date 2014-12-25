@@ -302,4 +302,3 @@ jmp _while_pre_condition_4
 _while_end_4: ;  }
 add esp, 8
 ret 
-w 

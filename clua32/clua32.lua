@@ -180,7 +180,6 @@ function directive(line, identifiers, i, fname)
 		if arg:sub(1, 1) == "<" then
 			arg = arg:sub(2, -2);
 			arg = arg:gsub("%s", ""):lower();
-			print(thisfile);
 			local source = "";
 			for line in io.lines(thisfile .. "/../include/" .. arg .. ".asm") do
 				source = source .. line .. "\n";
@@ -426,6 +425,7 @@ dofile("clua32/compile.lua");
 --------------------------------------------------------------------------------
 
 function clua32(src, main, secondary)
+	print("Compiling", src);
 	local source = stripComments(loadFile(src));
 	local identifiers = allDeclarations(source, src);
 	local compiled = compile(identifiers, arg[2], arg[3]);
@@ -444,5 +444,6 @@ end
 
 
 local file = io.open(arg[3], "w");
-file:write(clua32( arg[1], arg[2] ), "w");
+local program = clua32( arg[1], arg[2] );
+file:write(program);
 file:close();

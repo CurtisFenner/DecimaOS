@@ -350,7 +350,7 @@ function parseLines(file)
 		end
 	end
 
-	print("Optimization Mode: " .. mode:lower());
+	-- print("Optimization Mode: " .. mode:lower());
 
 	return instructions, mode:lower();
 end
@@ -729,7 +729,7 @@ function optimize(instructions, optimizeMode)
 			end
 		end
 		changed = reorderInstructions(instructions) or changed;
-		print("Optimization loop " .. loop);
+		-- print("Optimization loop " .. loop);
 	until (not changed) or loop > 20
 end
 
@@ -751,17 +751,3 @@ local f = io.open( arg[2] or "optout.asm", "w");
 for i = 1, #result do
 	f:write(result[i] .. "\n");
 end
-
---[[
--- Side by side comparison
-local wid = 30;
-for i = 1, #file do
-	local left = file[i];
-	if #left > wid - 3 then
-		left = left:sub(1, wid - 3) .. "...";
-	end
-	left = left .. (" "):rep(wid - #left) .. "    | ";
-	print(left .. (result[i] or ""));
-	f:write(left .. (result[i] or "") .. "\n");
-end
-]]
