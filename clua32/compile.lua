@@ -102,6 +102,10 @@ function compile(declarations)
 			else
 				emit(dform(typeSize(dec.type)) .. " 0\n");
 			end
+		elseif dec.sort == "include" then
+			--
+		else
+			print(dec.sort, "untreated declaration");
 		end
 		emit(""); -- Empty space
 	end
@@ -600,8 +604,9 @@ function replaceStringLiterals(tree, dec)
 		replaceStringLiterals(tree.value, dec);
 	elseif tree.sort == "function" then
 		replaceStringLiterals(tree.body, dec);
+	elseif tree.sort == "include" then
+		-- Nothing
 	else
-		deepPrint(tree);
 		error("Undealt with type of tree");
 		print(debug.traceback());
 	end
