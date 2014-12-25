@@ -1,5 +1,3 @@
-
-
 local data = "";
 
 for i = 1,#arg-1 do
@@ -13,6 +11,3 @@ local cmd = arg[#arg];
 local file = io.open(cmd, "wb");
 file:write( data );
 file:close();
-
-
-
