@@ -17,6 +17,9 @@ Known deviations from C
 * No automatic casting of char to int when operated on
 ]]
 
+local thisfile = arg[0];
+
+--------------------------------------------------------------------------------
 
 function table.find(tab, f)
 	for i, v in pairs(tab) do
@@ -25,6 +28,21 @@ function table.find(tab, f)
 		end
 	end
 end
+
+function string.split(str, by)
+	local list = {};
+	for word in str:gmatch("[^" .. by .."]") do
+		table.insert(list, word);
+	end
+	return list;
+end
+
+function string.trim(s)
+	return string.match(s,'^()%s*$') and '' or string.match(s,'^%s*(.*%S)')
+end
+
+--------------------------------------------------------------------------------
+
 
 function errorAt(str, source, i)
 	print(str,"at", sourceLocationString(source, i));
@@ -148,6 +166,8 @@ function eDeclaration(source, i, declarations)
 	return i;
 end
 
+
+
 function directive(line, identifiers, i, fname)
 	-- Does not include #
 	local space = line:find(" ");
@@ -158,12 +178,44 @@ function directive(line, identifiers, i, fname)
 	if word == "include" then
 		local arg = line:sub(space + 1);
 		if arg:sub(1, 1) == "<" then
-			print("SPECIAL", arg);
-			idens["#"] = {sort = "include"};
-			-- TODO
+			arg = arg:sub(2, -2);
+			arg = arg:gsub("%s", ""):lower();
+			print(thisfile);
+			local source = "";
+			for line in io.lines(thisfile .. "/../include/" .. arg .. ".asm") do
+				source = source .. line .. "\n";
+				local semi = line:find(";");
+				if semi and line:sub(1, semi - 1):gsub("%S", "") == "" then
+					local comment = line:sub(semi + 1);
+					local swirl = comment:find("@");
+					if swirl then
+						local anno = comment:sub(swirl + 1);
+						-- Add to identifiers the appropriate function definition.
+						local data = string.split(anno, ",");
+						for i = 1, #data do
+							data[i] = string.trim(data[i]);
+						end
+						-- Type, name, args
+						local func = {type = data[1], name = data[2], sort = "function"};
+						if identifiers[func.name] then
+							print(func.name, "is defined by an included assembly file");
+						end
+						identifiers[func.name] = func;
+						-- TODO
+						-- Name and type
+						local parameters = {};
+						for i = 3, #data do
+							table.insert(parameters,{name == "", type = data[i]});
+						end
+						func.parameters = parameters;
+						func.heading = true;
+					end
+				end
+			end
+			identifiers["#" .. i] = {sort = "include", source = source};
 		else
 			local _, defs = clua32(fname .. "/../" .. arg, nil, true);
-			identifiers["#"] = {sort = "include"};
+			identifiers["#" .. i] = {sort = "include"};
 			for identifier, definition in pairs(defs) do
 				identifiers[identifier] = definition;
 			end
@@ -183,6 +235,7 @@ function allDeclarations(source, fname)
 			local line = source:sub(i + 1, lineEnd - 1);
 			directive(line, idens, i, fname);
 			i = lineEnd;
+			i = eWhitespace(source, i);
 		else
 			i = eDeclaration(source, i, idens);
 			i = eWhitespace(source, i);

@@ -76,7 +76,9 @@ function compile(declarations)
 
 	for name, dec in pairs(declarations) do
 		if dec.sort == "function" then
-			emitFunction(dec, declarations);
+			if not dec.heading then
+				emitFunction(dec, declarations);
+			end
 		elseif dec.sort == "definition" then
 			emit("_global_" .. dec.name .. ":");
 			if dec.form == "label" then
@@ -603,7 +605,9 @@ function replaceStringLiterals(tree, dec)
 	elseif tree.sort == "expression" then
 		replaceStringLiterals(tree.value, dec);
 	elseif tree.sort == "function" then
-		replaceStringLiterals(tree.body, dec);
+		if not tree.heading then
+			replaceStringLiterals(tree.body, dec);
+		end
 	elseif tree.sort == "include" then
 		-- Nothing
 	else
