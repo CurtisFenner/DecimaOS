@@ -442,10 +442,17 @@ function emitExpression( exp, stack, globals, cleanUp )
 		local e = exp[i];
 		if e == "+" then
 			binAddition(stack);
+		elseif e == "/" then
+			error("Division not implemented");
 		elseif e == "*" then
 			binMath(stack, "imul");
 		elseif e == "-" then
 			binMath(stack, "sub"); -- TODO verify the order
+		elseif e == "u-" then
+			stackConvertValue(stack);
+			local k = pop(stack, "eax");
+			emit("neg eax");
+			push(stack, {type="int"}, "eax");
 		elseif e == "u*" then
 			-- Dereference
 			local top = peek(stack);
@@ -536,6 +543,10 @@ function emitExpression( exp, stack, globals, cleanUp )
 		elseif e:sub(1, 1) == "@" then
 			local arity = tonumber(e:sub(2))
 			local fun = stack[#stack - arity];
+			print(" ");
+			for i, v in pairs(fun) do
+				print(i, v, "(in fun)");
+			end
 			for i = 1, arity do
 				stackMakeRight(stack, i);
 			end
@@ -549,6 +560,9 @@ function emitExpression( exp, stack, globals, cleanUp )
 				comment("returned value");
 			end
 		else
+			if e:find("[-*+%.,<>=!]") and e:sub(1, 1) ~= "'" and e:sub(1, 1) ~= '"' then
+				error("Unhandled operator '" .. e .. "'");
+			end
 			emitAtom(e, stack, globals);
 		end
 	end
