@@ -56,3 +56,4 @@ asm_compiled/*
 asm_optimized/kernel.asm
 asm_compiled/kernel.asm
 asm_compiled/kernel.asm
+asm_compiled/kernel.asm
