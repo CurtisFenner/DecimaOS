@@ -12,6 +12,35 @@
 
 // Memory at 0x000b8000
 
+// Stupid integer mod (undefined for negative b) always positive
+int mod(int a, int b) {
+	if (a > b) {
+		return mod(a - b, b);
+	}
+	if (a < 0) {
+		return mod(a + b, b);
+	}
+	return a;
+}
+
+// Stupid integer division
+int div(int a, int b) {
+	if (a < 0) {
+		return 0-div(-a, b);
+	}
+	if (b < 0) {
+		return 0-div(a, -b);
+	}
+	if (a < b) {
+		return 0;
+	}
+	int i = 0;
+	while (a > b * i) {
+		i = i + 1;
+	}
+	return i;
+}
+
 void console_fill(char w) {
 	char * screen = (char *) 0x000b8000;
 	int i = 0;
@@ -29,13 +58,37 @@ char * console_index(int x, int y) {
 	return (char *) 0x000b8000 + (x + y * 80) * 2;
 }
 
+// static
+void console_char(char c, char style, int x, int y) {
+	char * c = console_index(x, y);
+	c[0] = c;
+	c[1] = style;
+}
+
 void console_printc(char * str, char style, int x, int y) {
 	char k = *str;
 	int i = 0;
 	while ( (int)str[i] > 0) {
-		char * c = console_index(x + i, y);
-		c[0] = str[i];
-		c[1] = style;
+		console_char(str[i], style, x + i, y);
 		i = i + 1;
+	}
+}
+
+
+
+// Prints integer num
+// Returns length (in characters printed) of num
+int console_printi(int num, char style, int x, int y) {
+	// x, y are left.
+	if (num < 0) {
+		console_char('-', style, x, y);
+		return 1;// + console_printi(0-num, style, x + 1, y);
+	} else {
+		if (num == 0) {
+			console_char('0', style, x, y);
+			return 1;
+		}
+		console_char((char)(48 /*'0'*/ + mod(num, 10)), style, x, y);
+		return 1;// + console_printi(div(num, 10), style, x, y);
 	}
 }
